@@ -1,0 +1,19 @@
+{
+  "name": "my-app",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "re-resizable": "^3.0.0",
+    "react": "^15.6.1",
+    "react-dom": "^15.6.1",
+    "react-resizable": "^1.7.4",
+    "react-rnd": "^7.0.0",
+    "react-scripts": "1.0.13"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test --env=jsdom",
+    "eject": "react-scripts eject"
+  }
+}
