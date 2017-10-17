@@ -114,7 +114,7 @@ export default class Interactable extends Component {
         var overlappingElementY = this.checkIfOverlapWithOtherElements(currentRectDy)
         var snappedElementY = this.checkIfOverlapWithOtherElements(currentRectSnapY)
 
-        // First thing is check if we can translate current element
+        // This is to check the case where the user is dragging it through the element but pulls out halfway through
         if (snappedElementY) {
             var snappedRect = snappedElementY.getRect()
             if (currentRect.top >= snappedRect.bottom && pointer.pageY < currentRect.top + currentRect.height/4 && event.dy > 0) {
@@ -142,33 +142,31 @@ export default class Interactable extends Component {
                 }
 
                 if (event.dx < 0) {
-                    // The user is on the right side of the element (This does not work since the element will be on the top before  it gets to the otherside)
-                    // So translating it back to the x is on the y overlapp part
                     if (pointerPos === 'bottom') {
                         // If it's at the bottom, translate it to the bottom, we need two points here, we're moving diagonally
-                        var distanceX = this.distanceBetweenTwoPoints(currentRect.left, currentRect.left - currentRect.width)
-                        var distanceY = this.distanceBetweenTwoPoints(currentRect.top, overlappingRectX.bottom)
+                        var distanceX = this.getXOverlapDistance(currentRect, overlappingRectX, -1)
+                        var distanceY = this.getDistanceToBottom(currentRect, overlappingRectX)
 
                         dx = -distanceX
                         dy = distanceY
                     } else if (pointerPos === 'top'){
                         // Then the pointer is at the top, translate it to the top
-                        var distanceX = this.distanceBetweenTwoPoints(currentRect.left, currentRect.left - currentRect.width)
-                        var distanceY = this.distanceBetweenTwoPoints(currentRect.top, overlappingRectX.top - currentRect.height)
+                        var distanceX = this.getXOverlapDistance(currentRect, overlappingRectX, -1)
+                        var distanceY = this.getDistanceToTop(currentRect, overlappingRectX)
 
                         dx = -distanceX
                         dy = -distanceY
                     }
                 } else if (event.dx > 0) {
                     if (pointerPos === 'bottom') {
-                        var distanceX = this.distanceBetweenTwoPoints(currentRect.left, currentRect.left + currentRect.width)
-                        var distanceY = this.distanceBetweenTwoPoints(currentRect.top, overlappingRectX.bottom)
+                        var distanceX = this.getXOverlapDistance(currentRect, overlappingRectX)
+                        var distanceY = this.getDistanceToBottom(currentRect, overlappingRectX)
 
                         dx = distanceX
                         dy = distanceY
                     } else if (pointerPos === 'top') {
-                        var distanceX = this.distanceBetweenTwoPoints(currentRect.left, currentRect.left + currentRect.width)
-                        var distanceY = this.distanceBetweenTwoPoints(currentRect.top, overlappingRectX.top - currentRect.height)
+                        var distanceX = this.getXOverlapDistance(currentRect, overlappingRectX)
+                        var distanceY = this.getDistanceToTop(currentRect, overlappingRectX)
 
                         dx = distanceX
                         dy = -distanceY
@@ -176,6 +174,7 @@ export default class Interactable extends Component {
                 }
                 this.translateElement(event, dx, dy)
             }
+
             if (overlappingElementY) {
                 const overlappingRectY = overlappingElementY.getRect()
                 const distance = this.distanceBetweenTwoPoints(currentRect.top, overlappingRectY.top)
@@ -188,9 +187,6 @@ export default class Interactable extends Component {
                     dy = distance - currentRect.height
                 }
 
-                // Set up the translating to the other side:
-                // We can do it by checking the sign of the delta to see where the current element is relative to the other one
-                // Also need to stop the element from translating when user tries to
                 if (event.dy < 0) {
                     var modifiedRect = {...currentRect, top: overlappingRectY.top - currentRect.height, bottom: overlappingRectY.top }
                     var newRect = this.findRectPositionOfNonOverlap(modifiedRect, 'below')
@@ -208,23 +204,18 @@ export default class Interactable extends Component {
                     }
                 }
 
-                // Check left, right, top and bottom and translate it accordingly
                 if (pointer.pageX <= overlappingRectY.left) {
-                    dx = -(this.distanceBetweenTwoPoints(currentRect.left, overlappingRectY.left - currentRect.width))
-                    if (currentRect.bottom <= overlappingRectY.top) {
-                        dy = (this.distanceBetweenTwoPoints(currentRect.top, pointer.pageY - 7/8*currentRect.height))
-                    } else if (currentRect.top >= overlappingRectY.bottom) {
-                        dy = -(this.distanceBetweenTwoPoints(currentRect.top, pointer.pageY - 1/8*currentRect.height))
+                    if (this.pointWithinRectY(pointer, overlappingRectY)) {
+                        dx = -(this.distanceBetweenTwoPoints(currentRect.left, overlappingRectY.left - currentRect.width))
+                        dy = this.snapToYAxis(pointer ,currentRect, overlappingRectY)
                     }
-
                 } else if (pointer.pageX >= overlappingRectY.right) {
-                    dx = (this.distanceBetweenTwoPoints(currentRect.left, overlappingRectY.right))
-                    if (currentRect.bottom <= overlappingRectY.top) {
-                        dy = (this.distanceBetweenTwoPoints(currentRect.top, pointer.pageY - 7/8*currentRect.height))
-                    } else if (currentRect.top >= overlappingRectY.bottom) {
-                        dy = -(this.distanceBetweenTwoPoints(currentRect.top, pointer.pageY - 1/8*currentRect.height))
+                    if (this.pointWithinRectY(pointer, overlappingRectY)) {
+                        dx = (this.distanceBetweenTwoPoints(currentRect.left, overlappingRectY.right))
+                        dy = this.snapToYAxis(pointer, currentRect, overlappingRectY)
                     }
                 }
+
                 this.translateElement(event, dx, dy)
             }
         } else {
@@ -232,8 +223,24 @@ export default class Interactable extends Component {
         }
     }
 
-    snapToYAxis = (currentRect, overlappingRectY) => {
+    getXOverlapDistance = (currentRect, overlappingRectX, multipler = 1) => {
+        return this.distanceBetweenTwoPoints(currentRect.left, currentRect.left + multipler*12)
+    }
 
+    getDistanceToTop = (currentRect, overlappingRectX) => {
+        return this.distanceBetweenTwoPoints(currentRect.top, overlappingRectX.top - currentRect.height)
+    }
+
+    getDistanceToBottom = (currentRect, overlappingRectX) => {
+        return this.distanceBetweenTwoPoints(currentRect.top, overlappingRectX.bottom)
+    }
+
+    snapToYAxis = (pointer, currentRect, overlappingRect) => {
+        if (currentRect.bottom <= overlappingRect.top) {
+            return (this.distanceBetweenTwoPoints(currentRect.top, pointer.pageY + 7 - currentRect.height))
+        } else if (currentRect.top >= overlappingRect.bottom) {
+            return -(this.distanceBetweenTwoPoints(currentRect.top, pointer.pageY - 7))
+        }
     }
 
     // Recursively checks if the rect that is passed down with its relative position to the other element will overlap (with future iterations)
@@ -281,7 +288,8 @@ export default class Interactable extends Component {
         var overlappingElement = false
         _.forEach(this.context.interactableList, (element) => {
             if (this.interact !== element) {
-                if (this.checkIfRectsOverlap(rect, element.getRect())) {
+                // Make sure that they are on the same layer for them to check if they are overlapped
+                if (this.checkIfRectsOverlap(rect, element.getRect()) && element.layer === this.interact.layer) {
                     overlappingElement = element
                 }
             }
@@ -376,11 +384,7 @@ export default class Interactable extends Component {
 
     pointWithinRectY = (pointer, Rect) => {
         if (pointer.pageY >= Rect.top && pointer.pageY <= Rect.bottom) {
-            if (pointer.pageX <= Rect.left + (Rect.width/2)) {
-                return 'left'
-            } else {
-                return 'right'
-            }
+            return true
         }
     }
 
@@ -407,8 +411,8 @@ export default class Interactable extends Component {
 
     componentDidMount() {
       this.interact = interact(findDOMNode(this))
-      this.context.registration(this.interact)
       this.setInteractions()
+      this.context.registration(this.interact)
     }
 
     componentWillUnmount () {
@@ -430,6 +434,7 @@ export default class Interactable extends Component {
 
 		if (this.props.draggable) {
             var draggableObject = {...defaultDraggableOptions}
+            this.interact.layer = 'A'
 
             if(this.context.dragSnapGrid) {
                 draggableObject = {...draggableObject, snap: {
@@ -441,6 +446,7 @@ export default class Interactable extends Component {
 
             if (this.props.snapRange || this.props.nooverlap) {
                 draggableObject = {...draggableObject, onmove: this._handleDragsnap}
+                this.interact.layer = 'B'
             }
 
             if (this.props.test) {

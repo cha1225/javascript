@@ -170,6 +170,9 @@ class App extends Component {
         <Interactive style={testStyle6} draggable resizable nooverlap>
           <button style={fillerStyle}> Snap to edges Test using snap targets</button>
         </Interactive>
+        <Interactive style={testStyle4} draggable resizable nooverlap>
+          <button style={fillerStyle}> Snap to edges Test using snap targets</button>
+        </Interactive>
         <Interactive style={testStyle5} draggable resizable resizeSnapgrid={{x: 50, y:50}}>
           <button style={fillerStyle}> Snap to edges Test </button>
         </Interactive>
